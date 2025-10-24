@@ -55,7 +55,7 @@ pub fn best_balanced_split(
     captain2_idx: Option<usize>,
 ) -> (Vec<Player>, Vec<Player>, i32) {
     let mut rng = rng();
-    players.shuffle(&mut rng);
+    // players.shuffle(&mut rng);
 
     let total_players = players.len();
     assert_eq!(
@@ -110,8 +110,8 @@ pub fn best_balanced_split(
                 .collect();
 
             // Adicionar capitães aos times
-            team1.push(captain1.clone());
-            team2.push(captain2.clone());
+            team1.insert(0, captain1.clone());
+            team2.insert(0, captain2.clone());
 
             let team1_skill = sum_skill(&team1) as i32;
             let team2_skill = sum_skill(&team2) as i32;

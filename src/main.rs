@@ -10,7 +10,7 @@ use eframe::egui::{FontData, FontDefinitions, FontFamily, RichText};
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([440.0, 380.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([510.0, 430.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -51,6 +51,8 @@ enum Tab {
 struct AppData {
     players: Vec<Player>,
     zoom: f32,
+    team1captain: Option<usize>,
+    team2captain: Option<usize>,
 }
 
 struct MyApp {
@@ -127,17 +129,16 @@ impl MyApp {
 
         ui.separator();
 
-        // Seleção de capitães
         ui.horizontal(|ui| {
-            ui.label("Capitão Time 1:");
-            egui::ComboBox::from_label("")
+            ui.label("Team 1 Captain:");
+            egui::ComboBox::from_id_salt("captain1")
                 .selected_text(
                     self.captain1_idx
                         .and_then(|idx| self.players.get(idx).map(|p| p.name.as_str()))
-                        .unwrap_or("Nenhum")
+                        .unwrap_or("None")
                 )
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.captain1_idx, None, "Nenhum");
+                    ui.selectable_value(&mut self.captain1_idx, None, "None");
                     for (idx, player) in self.players.iter().enumerate() {
                         if !player.name.is_empty() {
                             ui.selectable_value(
@@ -149,15 +150,15 @@ impl MyApp {
                     }
                 });
 
-            ui.label("Capitão Time 2:");
-            egui::ComboBox::from_label("")
+            ui.label("Team 2 Captain:");
+            egui::ComboBox::from_id_salt("captain2")
                 .selected_text(
                     self.captain2_idx
                         .and_then(|idx| self.players.get(idx).map(|p| p.name.as_str()))
-                        .unwrap_or("Nenhum")
+                        .unwrap_or("None")
                 )
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.captain2_idx, None, "Nenhum");
+                    ui.selectable_value(&mut self.captain2_idx, None, "None");
                     for (idx, player) in self.players.iter().enumerate() {
                         if !player.name.is_empty() {
                             ui.selectable_value(
@@ -272,6 +273,8 @@ impl MyApp {
         let data = AppData {
             players: self.players.clone(),
             zoom: self.zoom,
+            team1captain: self.captain1_idx,
+            team2captain: self.captain2_idx,
         };
 
         let ron_string = ron::to_string(&data).expect("Failed to serialize data to RON");
