@@ -1,4 +1,3 @@
-use rand::rng;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
@@ -29,7 +28,7 @@ pub fn best_balanced_split(
     players: &mut [Player],
     team_count: usize,
 ) -> Vec<Vec<Player>> {
-    let mut rng = rng();
+    let mut rng = rand::rng();
     players.shuffle(&mut rng);
 
     // Separar capitães e jogadores normais
@@ -78,7 +77,7 @@ fn create_greedy_teams(
     captains: &[Player],
     has_captains: bool,
 ) -> Vec<Vec<Player>> {
-    let mut rng = rng();
+    let mut rng = rand::rng();
 
     let mut teams: Vec<Vec<Player>> = if has_captains {
         captains.iter().map(|cap| vec![cap.clone()]).collect()

@@ -8,6 +8,7 @@ use eframe::egui;
 use eframe::egui::{FontData, FontDefinitions, FontFamily, RichText};
 use image::GenericImageView;
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     let icon_data = {
         let image = image::load_from_memory(include_bytes!("../assets/icon.ico"))
@@ -52,6 +53,68 @@ fn main() -> eframe::Result {
             Ok(Box::<MyApp>::default())
         }),
     )
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    use eframe::wasm_bindgen::JsCast as _;
+
+    let web_options = eframe::WebOptions::default();
+
+    wasm_bindgen_futures::spawn_local(async {
+        let document = web_sys::window()
+            .expect("No window")
+            .document()
+            .expect("No document");
+
+        let canvas = document
+            .get_element_by_id("the_canvas_id")
+            .expect("Failed to find the_canvas_id")
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .expect("the_canvas_id was not a HtmlCanvasElement");
+
+        let start_result = eframe::WebRunner::new()
+            .start(
+                canvas,
+                web_options,
+                Box::new(|cc| {
+                    let mut fonts = FontDefinitions::default();
+
+                    fonts.font_data.insert(
+                        "my_font".to_owned(),
+                        std::sync::Arc::new(FontData::from_static(include_bytes!(
+                            "../assets/Stratum2WebMedium.otf"
+                        ))),
+                    );
+
+                    fonts
+                        .families
+                        .get_mut(&FontFamily::Proportional)
+                        .unwrap()
+                        .insert(0, "my_font".to_owned());
+
+                    cc.egui_ctx.set_fonts(fonts);
+
+                    Ok(Box::<MyApp>::default())
+                }),
+            )
+            .await;
+
+        // Remove the loading text and spinner:
+        if let Some(loading_text) = document.get_element_by_id("loading_text") {
+            match start_result {
+                Ok(_) => {
+                    loading_text.remove();
+                }
+                Err(e) => {
+                    loading_text.set_inner_html(
+                        "<p> The app has crashed. See the developer console for details. </p>",
+                    );
+                    panic!("Failed to start eframe: {e:?}");
+                }
+            }
+        }
+    });
 }
 
 #[derive(PartialEq, serde::Serialize, serde::Deserialize)]
@@ -260,6 +323,7 @@ impl MyApp {
         });
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn save_to_disk(&self) {
         let ron_string = ron::to_string(&AppData {
             players: self.players.clone(),
@@ -272,9 +336,20 @@ impl MyApp {
             .expect("Failed to write cache to disk");
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn read_from_disk() -> Option<AppData> {
         let appdata = std::fs::read("team_creator_cache.ron").ok()?;
         let ron_str = String::from_utf8(appdata).ok()?;
         ron::from_str(&ron_str).ok()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn save_to_disk(&self) {
+        // No-op on wasm
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn read_from_disk() -> Option<AppData> {
+        None
     }
 }
