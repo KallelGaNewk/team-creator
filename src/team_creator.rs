@@ -1,8 +1,9 @@
 use rand::rng;
 use rand::seq::SliceRandom;
+use rand::Rng;
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Player {
     pub name: String,
     pub skill: u32,
@@ -21,157 +22,122 @@ impl Default for Player {
 }
 
 pub fn sum_skill(team: &Vec<Player>) -> u32 {
-    team.iter().map(|p| p.skill).sum::<u32>() / 2
-}
-
-fn combinations(n: usize) -> Vec<Vec<usize>> {
-    let k = n / 2;
-    let mut result = Vec::new();
-    let mut combo = Vec::with_capacity(k);
-    fn backtrack(
-        start: usize,
-        n: usize,
-        k: usize,
-        combo: &mut Vec<usize>,
-        result: &mut Vec<Vec<usize>>,
-    ) {
-        if combo.len() == k {
-            result.push(combo.clone());
-            return;
-        }
-        for i in start..n {
-            combo.push(i);
-            backtrack(i + 1, n, k, combo, result);
-            combo.pop();
-        }
-    }
-    backtrack(0, n, k, &mut combo, &mut result);
-    result
+    team.iter().map(|p| p.skill).sum::<u32>()
 }
 
 pub fn best_balanced_split(
     players: &mut [Player],
-    captain1_idx: Option<usize>,
-    captain2_idx: Option<usize>,
-) -> (Vec<Player>, Vec<Player>, i32) {
+    team_count: usize,
+) -> Vec<Vec<Player>> {
     let mut rng = rng();
-    // players.shuffle(&mut rng);
+    players.shuffle(&mut rng);
 
-    let total_players = players.len();
-    assert_eq!(
-        total_players % 2,
-        0,
-        "Número de jogadores deve ser par para dividir em times iguais"
-    );
+    // Separar capitães e jogadores normais
+    let (captains, non_captains): (Vec<Player>, Vec<Player>) = players
+        .iter()
+        .cloned()
+        .partition(|p| p.is_captain);
 
-    // Se houver capitães, processar de forma especial
-    if let (Some(cap1), Some(cap2)) = (captain1_idx, captain2_idx) {
-        // Garantir que os capitães sejam diferentes
-        if cap1 == cap2 {
-            panic!("Os capitães devem ser jogadores diferentes");
+    // Determinar qual lista usar para combinações
+    let (base_players, has_captains) = if captains.len() == team_count {
+        (non_captains.clone(), true)
+    } else {
+        (players.to_vec(), false)
+    };
+
+    if team_count == 1 {
+        return vec![base_players];
+    }
+
+    // Para divisão em múltiplos times, usamos uma abordagem gulosa iterativa
+    // que é mais eficiente que enumerar todas as combinações possíveis
+    let mut best_teams = create_greedy_teams(&base_players, team_count, &captains, has_captains);
+    let mut best_variance = calculate_variance(&best_teams);
+
+    // Tenta algumas iterações de otimização para melhorar o balanceamento
+    let iterations = if base_players.len() <= 10 { 1000 } else { 100 };
+
+    for _ in 0..iterations {
+        let mut shuffled = base_players.clone();
+        shuffled.shuffle(&mut rng);
+        let teams = create_greedy_teams(&shuffled, team_count, &captains, has_captains);
+        let variance = calculate_variance(&teams);
+
+        if variance < best_variance {
+            best_variance = variance;
+            best_teams = teams;
         }
+    }
 
-        let captain1 = players[cap1].clone();
-        let captain2 = players[cap2].clone();
+    best_teams
+}
 
-        // Criar lista de jogadores sem os capitães
-        let remaining_players: Vec<(usize, Player)> = players
+fn create_greedy_teams(
+    base_players: &[Player],
+    team_count: usize,
+    captains: &[Player],
+    has_captains: bool,
+) -> Vec<Vec<Player>> {
+    let mut rng = rng();
+
+    let mut teams: Vec<Vec<Player>> = if has_captains {
+        captains.iter().map(|cap| vec![cap.clone()]).collect()
+    } else {
+        vec![Vec::new(); team_count]
+    };
+
+    // Calculate target team size
+    let target_size = if has_captains {
+        (base_players.len() / team_count) + 1  // +1 for the captain already in each team
+    } else {
+        base_players.len() / team_count
+    };
+
+    // Shuffle players for randomness instead of strict sorting
+    let mut shuffled_players = base_players.to_vec();
+    shuffled_players.shuffle(&mut rng);
+
+    // Distribuir jogadores com randomização
+    for player in shuffled_players {
+        // Get available teams (not full)
+        let available_teams: Vec<usize> = teams
             .iter()
             .enumerate()
-            .filter(|(idx, _)| *idx != cap1 && *idx != cap2)
-            .map(|(idx, p)| (idx, p.clone()))
+            .filter(|(_, team)| team.len() < target_size)
+            .map(|(idx, _)| idx)
             .collect();
 
-        let remaining_count = remaining_players.len();
-        let all_combinations = combinations(remaining_count);
+        if available_teams.is_empty() {
+            break;
+        }
 
-        let mut smallest_skill_difference = i32::MAX;
-        let mut most_balanced_team1 = Vec::new();
-        let mut most_balanced_team2 = Vec::new();
-
-        for combination in all_combinations {
-            let mut is_in_team1 = vec![false; remaining_count];
-            for &player_index in &combination {
-                is_in_team1[player_index] = true;
-            }
-
-            let (team1_remaining, team2_remaining): (Vec<_>, Vec<_>) = remaining_players
+        // Add some randomness: 50% of the time pick team with lowest skill,
+        // 50% of the time pick randomly from available teams
+        let team_idx = if rng.random::<f32>() < 0.5 && available_teams.len() > 1 {
+            // Pick team with lowest skill among available
+            *available_teams
                 .iter()
-                .enumerate()
-                .partition(|(index, _)| is_in_team1[*index]);
+                .min_by_key(|&&idx| sum_skill(&teams[idx]))
+                .unwrap()
+        } else {
+            // Pick random available team
+            let random_idx = rng.random_range(0..available_teams.len());
+            available_teams[random_idx]
+        };
 
-            let mut team1: Vec<Player> = team1_remaining
-                .into_iter()
-                .map(|(_, (_, player))| player.clone())
-                .collect();
-            let mut team2: Vec<Player> = team2_remaining
-                .into_iter()
-                .map(|(_, (_, player))| player.clone())
-                .collect();
-
-            // Adicionar capitães aos times
-            team1.insert(0, captain1.clone());
-            team2.insert(0, captain2.clone());
-
-            let team1_skill = sum_skill(&team1) as i32;
-            let team2_skill = sum_skill(&team2) as i32;
-            let skill_difference = (team1_skill - team2_skill).abs();
-
-            if skill_difference < smallest_skill_difference {
-                smallest_skill_difference = skill_difference;
-                most_balanced_team1 = team1;
-                most_balanced_team2 = team2;
-            }
-        }
-
-        return (
-            most_balanced_team1,
-            most_balanced_team2,
-            smallest_skill_difference,
-        );
+        teams[team_idx].push(player);
     }
 
-    // Código original quando não há capitães
-    let all_combinations = combinations(total_players);
+    teams
+}
 
-    let mut smallest_skill_difference = i32::MAX;
-    let mut most_balanced_team1 = Vec::new();
-    let mut most_balanced_team2 = Vec::new();
+fn calculate_variance(teams: &[Vec<Player>]) -> i32 {
+    let skills: Vec<i32> = teams.iter().map(|team| sum_skill(team) as i32).collect();
 
-    for combination in all_combinations {
-        let mut is_in_team1 = vec![false; total_players];
-        for &player_index in &combination {
-            is_in_team1[player_index] = true;
-        }
-
-        let (team1, team2): (Vec<_>, Vec<_>) = players
-            .iter()
-            .enumerate()
-            .partition(|(index, _)| is_in_team1[*index]);
-
-        let team1: Vec<Player> = team1
-            .into_iter()
-            .map(|(_, player)| player.clone())
-            .collect();
-        let team2: Vec<Player> = team2
-            .into_iter()
-            .map(|(_, player)| player.clone())
-            .collect();
-
-        let team1_skill = sum_skill(&team1) as i32;
-        let team2_skill = sum_skill(&team2) as i32;
-        let skill_difference = (team1_skill - team2_skill).abs();
-
-        if skill_difference < smallest_skill_difference {
-            smallest_skill_difference = skill_difference;
-            most_balanced_team1 = team1;
-            most_balanced_team2 = team2;
-        }
+    if teams.len() == 2 {
+        (skills[0] - skills[1]).abs()
+    } else {
+        let avg = skills.iter().sum::<i32>() / skills.len() as i32;
+        skills.iter().map(|&s| (s - avg).pow(2)).sum()
     }
-
-    (
-        most_balanced_team1,
-        most_balanced_team2,
-        smallest_skill_difference,
-    )
 }
