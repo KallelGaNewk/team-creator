@@ -284,8 +284,11 @@ impl MyApp {
     fn show_results(&mut self, ui: &mut egui::Ui) {
         ui.heading("Teams Created:");
 
+        // Make a snapshot clone for read-only iteration so we can mutate self.teams when swapping
+        let teams_snapshot = self.teams.clone();
+
         ui.horizontal(|ui| {
-            for (team_idx, team) in self.teams.iter().enumerate() {
+            for (team_idx, team) in teams_snapshot.iter().enumerate() {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         ui.heading(
@@ -297,13 +300,74 @@ impl MyApp {
                         ui.label(format!("{}", sum_skill(team.as_ref())));
                     });
 
-                    for player in team {
-                        ui.label(format!(
+                    for (player_idx, player) in team.iter().enumerate() {
+                        // For each player we show a menu button (dropdown) that lists eligible players
+                        // from other teams. We temporarily disable button framing to match the style.
+                        let prev_button_frame = ui.visuals().button_frame;
+                        ui.visuals_mut().button_frame = false;
+
+                        let button_label = format!(
                             "{}{} ({})",
                             if player.is_captain { "⭐ " } else { "" },
-                            player.name,
+                            if player.name.is_empty() { "<unnamed>" } else { &player.name },
                             player.skill
-                        ));
+                        );
+
+                        // Use menu_button to create a dropdown. The id_source ensures uniqueness.
+                        ui.menu_button(button_label, |ui| {
+                                 // List all players from other teams as selectable entries
+                                 let mut done = false;
+                                 'other_teams: for (other_team_idx, other_team) in
+                                    teams_snapshot.iter().enumerate()
+                                 {
+                                     if other_team_idx == team_idx {
+                                        continue; // skip same team
+                                     }
+
+                                     ui.label(format!("Team {}", other_team_idx + 1));
+
+                                     for (other_player_idx, other_player) in
+                                        other_team.iter().enumerate()
+                                     {
+                                        // Skip captain players
+                                        if other_player.is_captain {
+                                            continue;
+                                        }
+
+                                         let label = format!(
+                                             "{}{} ({})",
+                                             if other_player.is_captain { "⭐ " } else { "" },
+                                             if other_player.name.is_empty() { "<unnamed>" } else { &other_player.name },
+                                             other_player.skill
+                                         );
+
+                                         if ui.selectable_label(false, label).clicked() {
+                                             // Perform swap between (team_idx, player_idx) and
+                                             // (other_team_idx, other_player_idx)
+                                             self.swap_players(
+                                                 team_idx,
+                                                 player_idx,
+                                                 other_team_idx,
+                                                 other_player_idx,
+                                             );
+
+                                             // Close the menu and break out of loops
+                                             ui.close();
+                                             done = true;
+                                             break;
+                                         }
+                                     }
+
+                                     if done {
+                                         break 'other_teams;
+                                     } else {
+                                         ui.separator();
+                                     }
+                                 }
+                             });
+
+                        // Restore previous visuals.button_frame value
+                        ui.visuals_mut().button_frame = prev_button_frame;
                     }
                 });
 
@@ -351,5 +415,27 @@ impl MyApp {
     #[cfg(target_arch = "wasm32")]
     fn read_from_disk() -> Option<AppData> {
         None
+    }
+
+    // Swap two players between different teams safely. If the teams are the same, do nothing.
+    fn swap_players(&mut self, t1: usize, p1: usize, t2: usize, p2: usize) {
+        if t1 == t2 {
+            return;
+        }
+
+        // Use split_at_mut to get two non-overlapping mutable slices so we can borrow both teams
+        if t1 < t2 {
+            let (left, right) = self.teams.split_at_mut(t2);
+            // left[t1] and right[0] correspond to team t1 and team t2 respectively
+            if p1 < left[t1].len() && p2 < right[0].len() {
+                std::mem::swap(&mut left[t1][p1], &mut right[0][p2]);
+            }
+        } else {
+            let (left, right) = self.teams.split_at_mut(t1);
+            // right[0] is team t1, left[t2] is team t2
+            if p1 < right[0].len() && p2 < left[t2].len() {
+                std::mem::swap(&mut right[0][p1], &mut left[t2][p2]);
+            }
+        }
     }
 }
