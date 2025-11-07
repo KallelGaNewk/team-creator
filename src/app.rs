@@ -270,7 +270,7 @@ impl MyApp {
                 self.teams = best_balanced_split(&mut self.players, self.number_of_teams);
             }
             if ui.button("📋 Copy").clicked() {
-                self.copy_teams_to_clipboard();
+                self.copy_teams_to_clipboard(ui);
             }
         });
     }
@@ -341,7 +341,7 @@ impl MyApp {
         }
     }
 
-    fn copy_teams_to_clipboard(&self) {
+    fn copy_teams_to_clipboard(&self, ui: &mut egui::Ui) {
         let mut output = String::new();
 
         for (team_idx, team) in self.teams.iter().enumerate() {
@@ -357,16 +357,6 @@ impl MyApp {
             output.push('\n');
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut clipboard = arboard::Clipboard::new().unwrap();
-            clipboard.set_text(output).unwrap();
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            let navigator = self.window.navigator().clipboard();
-            let _ = navigator.write_text(&output);
-        }
+        ui.ctx().copy_text(output);
     }
 }
