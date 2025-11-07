@@ -2681,6 +2681,7 @@ dependencies = [
 name = "team-creator"
 version = "0.1.0"
 dependencies = [
+ "arboard",
  "eframe",
  "getrandom",
  "image",

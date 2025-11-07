@@ -31,13 +31,13 @@ pub fn best_balanced_split(
     let mut rng = rand::rng();
     players.shuffle(&mut rng);
 
-    // Separar capitães e jogadores normais
+    // Separate captains and regular players
     let (captains, non_captains): (Vec<Player>, Vec<Player>) = players
         .iter()
         .cloned()
         .partition(|p| p.is_captain);
 
-    // Determinar qual lista usar para combinações
+    // Determine which list to use for combinations
     let (base_players, has_captains) = if captains.len() == team_count {
         (non_captains.clone(), true)
     } else {
@@ -48,12 +48,12 @@ pub fn best_balanced_split(
         return vec![base_players];
     }
 
-    // Para divisão em múltiplos times, usamos uma abordagem gulosa iterativa
-    // que é mais eficiente que enumerar todas as combinações possíveis
+    // For splitting into multiple teams, we use an iterative greedy approach
+    // which is more efficient than enumerating all possible combinations
     let mut best_teams = create_greedy_teams(&base_players, team_count, &captains, has_captains);
     let mut best_variance = calculate_variance(&best_teams);
 
-    // Tenta algumas iterações de otimização para melhorar o balanceamento
+    // Try some optimization iterations to improve balancing
     let iterations = if base_players.len() <= 10 { 1000 } else { 100 };
 
     for _ in 0..iterations {
@@ -96,7 +96,7 @@ fn create_greedy_teams(
     let mut shuffled_players = base_players.to_vec();
     shuffled_players.shuffle(&mut rng);
 
-    // Distribuir jogadores com randomização
+    // Distribute players with randomization
     for player in shuffled_players {
         // Get available teams (not full)
         let available_teams: Vec<usize> = teams
