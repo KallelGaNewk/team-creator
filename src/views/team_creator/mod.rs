@@ -1,8 +1,10 @@
 mod team_creator;
 
+use crate::cache::PersistentCache;
+use crate::extensions::PressedEnterExt;
 use eframe::egui;
 use eframe::egui::{CursorIcon, RichText};
-use team_creator::{best_balanced_split, sum_skill, Player};
+use team_creator::{Player, best_balanced_split, sum_skill};
 
 #[derive(PartialEq, serde::Serialize, serde::Deserialize)]
 enum Tab {
@@ -26,6 +28,12 @@ pub struct TeamCreator {
     window: web_sys::Window,
 }
 
+impl PersistentCache for PersistentData {
+    fn filename() -> &'static str {
+        "team_creator_cache.ron"
+    }
+}
+
 impl super::View for TeamCreator {
     fn name(&self) -> &str {
         "👥 Team Creator"
@@ -43,21 +51,15 @@ impl super::View for TeamCreator {
     }
 }
 
-impl Default for PersistentData {
-    fn default() -> Self {
-        PersistentData {
-            players: Vec::new(),
-            number_of_teams: 2,
-        }
-    }
-}
-
 impl Default for TeamCreator {
     fn default() -> Self {
         TeamCreator {
             tab: Tab::TeamCreator,
             teams: Vec::new(),
-            persistent_data: TeamCreator::read_from_disk().unwrap_or_default(),
+            persistent_data: PersistentData::read_or(PersistentData {
+                players: Vec::new(),
+                number_of_teams: 2,
+            }),
             player_being_edited: None,
             new_player: Player::default(),
             #[cfg(target_arch = "wasm32")]
@@ -134,9 +136,7 @@ impl TeamCreator {
                     ui.checkbox(&mut self.new_player.is_captain, "");
                 }
 
-                if ui.button("➕ Add").clicked()
-                    || (text_box.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                {
+                if ui.button("➕ Add").clicked() || text_box.pressed_enter(ui.ctx()) {
                     self.persistent_data.players.push(self.new_player.clone());
                     self.new_player = Player::default();
                     text_box.request_focus();
@@ -163,9 +163,7 @@ impl TeamCreator {
                         ui.checkbox(&mut player.is_captain, "");
                     }
 
-                    if ui.button("💾").clicked()
-                        || (text_box.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                    {
+                    if ui.button("💾").clicked() || text_box.pressed_enter(ui.ctx()) {
                         self.player_being_edited = None;
                     }
                 } else {
@@ -202,7 +200,7 @@ impl TeamCreator {
                 ui.add_enabled(false, egui::Button::new("Create Teams"));
             } else {
                 if ui.button("Create Teams").clicked() {
-                    self.save_to_disk();
+                    self.persistent_data.save_to_disk();
                     self.teams = best_balanced_split(
                         &mut self.persistent_data.players,
                         self.persistent_data.number_of_teams,
@@ -317,48 +315,8 @@ impl TeamCreator {
             self.teams.clear();
             self.persistent_data.number_of_teams = 2;
             self.tab = Tab::TeamCreator;
-            self.save_to_disk();
+            self.persistent_data.save_to_disk();
         }
-    }
-
-    fn save_to_disk(&self) {
-        let ron_string =
-            ron::to_string(&self.persistent_data).expect("Failed to serialize data to RON");
-
-        #[cfg(not(target_arch = "wasm32"))]
-        std::fs::write("team_creator_cache.ron", ron_string)
-            .expect("Failed to write cache to disk");
-
-        #[cfg(target_arch = "wasm32")]
-        if let Some(storage) = self.window.local_storage().ok().flatten() {
-            storage
-                .set_item("team_creator_cache", &ron_string)
-                .expect("Failed to write cache to localStorage");
-        }
-    }
-
-    fn read_from_disk() -> Option<PersistentData> {
-        #[cfg(not(target_arch = "wasm32"))]
-        let ron_str = {
-            let appdata = std::fs::read("team_creator_cache.ron").ok()?;
-            String::from_utf8(appdata).ok()?
-        };
-
-        #[cfg(target_arch = "wasm32")]
-        let ron_str = {
-            if let Some(storage) = web_sys::window()
-                .expect("no global `window` exists")
-                .local_storage()
-                .ok()
-                .flatten()
-            {
-                storage.get_item("team_creator_cache").ok().flatten()?
-            } else {
-                return None;
-            }
-        };
-
-        ron::from_str(&ron_str).ok()
     }
 
     /// Swap two players between different teams safely. If the teams are the same, do nothing.

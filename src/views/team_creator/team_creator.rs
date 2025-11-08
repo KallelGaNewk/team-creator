@@ -1,4 +1,4 @@
-use crate::str_ext::StringExt;
+use crate::extensions::StringExt;
 use rand::Rng;
 use rand::seq::SliceRandom;
 

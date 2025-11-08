@@ -1,4 +1,4 @@
 /target
-team_creator_cache.ron
+*.ron
 /.idea
 /dist

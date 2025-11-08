@@ -26,6 +26,7 @@ impl Default for Views {
 }
 
 impl Views {
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         self.views[self.active_view].name()
     }
