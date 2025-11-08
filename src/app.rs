@@ -4,7 +4,6 @@ use eframe::{CreationContext, egui};
 
 pub struct App {
     views: Views,
-    zoom: f32,
 }
 
 impl eframe::App for App {
@@ -20,15 +19,6 @@ impl eframe::App for App {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     egui::widgets::global_theme_preference_switch(ui);
                     ui.separator();
-                    // ui.separator();
-                    // ui.label("Zoom: ");
-                    //
-                    // if !ui
-                    //     .add(egui::Slider::new(&mut self.zoom, 0.8..=3.0))
-                    //     .dragged()
-                    // {
-                    //     ctx.set_pixels_per_point(ctx.pixels_per_point() * self.zoom);
-                    // }
                 });
             });
         });
@@ -64,7 +54,6 @@ impl App {
 
         Self {
             views: Views::default(),
-            zoom: 1.0,
         }
     }
 
