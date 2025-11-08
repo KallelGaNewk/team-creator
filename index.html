@@ -2,11 +2,11 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <link rel="icon" href="/icon-94f163956e009ebf.ico" integrity="sha384-TpVaLi+oOLefK6bPuwKosda7L78r5wCCx9zF5EgjpnA8ISDLI9m5zPAoTuK27r2j"/>
+        <link rel="icon" href="/team-creator/icon-94f163956e009ebf.ico" integrity="sha384-TpVaLi+oOLefK6bPuwKosda7L78r5wCCx9zF5EgjpnA8ISDLI9m5zPAoTuK27r2j"/>
         
 <script type="module">
-import init, * as bindings from '/team-creator-63933fb27cdce487.js';
-const wasm = await init({ module_or_path: '/team-creator-63933fb27cdce487_bg.wasm' });
+import init, * as bindings from '/team-creator/team-creator-63933fb27cdce487.js';
+const wasm = await init({ module_or_path: '/team-creator/team-creator-63933fb27cdce487_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -15,7 +15,7 @@ window.wasmBindings = bindings;
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
-        <base href="/" />
+        <base href="/team-creator/" />
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="white" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#404040" />
         <title>Kallel's Utilities</title>
@@ -106,7 +106,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
                 }
             }
         </style>
-    <link rel="modulepreload" href="/team-creator-63933fb27cdce487.js" crossorigin="anonymous" integrity="sha384-FVX9drKjYctYa1b1Y/DHlcLrPCf3vQIjJ8Bryor8B5in0BnftErEV64gSHEZGXZw"><link rel="preload" href="/team-creator-63933fb27cdce487_bg.wasm" crossorigin="anonymous" integrity="sha384-jgijq4/Lpe1G0oIS2bo+sHsYSBiAPqUkP4IGtAfymyM/ynoQl/aiQSSLsPPCNOy3" as="fetch" type="application/wasm"></head>
+    <link rel="modulepreload" href="/team-creator/team-creator-63933fb27cdce487.js" crossorigin="anonymous" integrity="sha384-0McvAqHw23anQB9BzGInvY2pzikn+lcEE4aYK980dfiu8yGVIF/HD3k0y2rPoKwy"><link rel="preload" href="/team-creator/team-creator-63933fb27cdce487_bg.wasm" crossorigin="anonymous" integrity="sha384-bZ9dDss7BVe8ZQevxUEHto/F9c0WOjSzkn93+XezKme7FuceknktgmQkvT4TiHJw" as="fetch" type="application/wasm"></head>
     <body>
     <canvas id="the_canvas_id"></canvas>
 
