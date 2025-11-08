@@ -10,9 +10,6 @@ ProductName = "Team Creator"
 CompanyName = "Zallix"
 LegalCopyright = "Copyright © 2025"
 
-[package.metadata.trunk.build]
-public-url = "/team-creator/"
-
 [dependencies]
 eframe = "0.33.0"
 ron = "0.11.0"
