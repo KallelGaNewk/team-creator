@@ -1,5 +1,6 @@
-use rand::seq::SliceRandom;
+use crate::str_ext::StringExt;
 use rand::Rng;
+use rand::seq::SliceRandom;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -20,22 +21,32 @@ impl Default for Player {
     }
 }
 
+impl Player {
+    pub fn pretty_name(&self, hide_skill: bool) -> String {
+        format!(
+            "{}{}{}",
+            if self.is_captain { "⭐ " } else { "" },
+            self.name.as_str_or("<unnamed>"),
+            if hide_skill {
+                String::new()
+            } else {
+                format!(" ({})", self.skill)
+            },
+        )
+    }
+}
+
 pub fn sum_skill(team: &Vec<Player>) -> u32 {
     team.iter().map(|p| p.skill).sum::<u32>()
 }
 
-pub fn best_balanced_split(
-    players: &mut [Player],
-    team_count: usize,
-) -> Vec<Vec<Player>> {
+pub fn best_balanced_split(players: &mut [Player], team_count: usize) -> Vec<Vec<Player>> {
     let mut rng = rand::rng();
     players.shuffle(&mut rng);
 
     // Separate captains and regular players
-    let (captains, non_captains): (Vec<Player>, Vec<Player>) = players
-        .iter()
-        .cloned()
-        .partition(|p| p.is_captain);
+    let (captains, non_captains): (Vec<Player>, Vec<Player>) =
+        players.iter().cloned().partition(|p| p.is_captain);
 
     // Determine which list to use for combinations
     let (base_players, has_captains) = if captains.len() == team_count {
@@ -87,7 +98,7 @@ fn create_greedy_teams(
 
     // Calculate target team size
     let target_size = if has_captains {
-        (base_players.len() / team_count) + 1  // +1 for the captain already in each team
+        (base_players.len() / team_count) + 1 // +1 for the captain already in each team
     } else {
         base_players.len() / team_count
     };

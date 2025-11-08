@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod team_creator;
 mod app;
 mod str_ext;
+mod views;
 
-use crate::app::MyApp;
+use crate::app::App;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
@@ -31,11 +31,9 @@ fn main() -> eframe::Result {
     };
 
     eframe::run_native(
-        "Team Creator by Kallel",
+        "Kallel's Utilities",
         options,
-        Box::new(|cc| {
-            Ok(Box::new(MyApp::create(cc)))
-        }),
+        Box::new(|cc| Ok(Box::new(App::default(cc)))),
     )
 }
 
@@ -61,7 +59,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(MyApp::create(cc)))),
+                Box::new(|cc| Ok(Box::new(App::default(cc)))),
             )
             .await;
 
