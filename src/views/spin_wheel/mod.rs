@@ -9,14 +9,15 @@ use eframe::egui::{Color32, FontId, Id, Modal, Pos2, Stroke};
 use eframe::epaint::PathShape;
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct PersistentData {}
-
-pub struct SpinWheel {
-    persistent_data: PersistentData,
-    wheel: Wheel,
-    input_text: String,
+struct PersistentData {
     wheel_choices: Vec<Choice>,
     removed_choices: Vec<Choice>,
+}
+
+pub struct SpinWheel {
+    pd: PersistentData,
+    wheel: Wheel,
+    input_text: String,
 }
 
 impl PersistentCache for PersistentData {
@@ -28,11 +29,12 @@ impl PersistentCache for PersistentData {
 impl Default for SpinWheel {
     fn default() -> Self {
         SpinWheel {
-            persistent_data: PersistentData::read_or(PersistentData {}),
+            pd: PersistentData::read_or(PersistentData {
+                wheel_choices: vec![],
+                removed_choices: vec![],
+            }),
             wheel: Wheel::new(),
             input_text: String::new(),
-            wheel_choices: vec![],
-            removed_choices: vec![],
         }
     }
 }
@@ -50,16 +52,20 @@ impl super::View for SpinWheel {
                 ui.separator();
                 ui.heading(egui::RichText::new(&winner.label).size(24.0));
                 ui.separator();
-                egui::Sides::new().show(ui, |_ui| {}, |ui| {
-                    if ui.button("🗑 Remove").clicked() {
-                        self.remove_entry(winner, true);
-                        ui.close();
-                    }
+                egui::Sides::new().show(
+                    ui,
+                    |_ui| {},
+                    |ui| {
+                        if ui.button("🗑 Remove").clicked() {
+                            self.remove_entry(winner, true);
+                            ui.close();
+                        }
 
-                    if ui.button("❌ Close").clicked() {
-                        ui.close();
-                    }
-                });
+                        if ui.button("❌ Close").clicked() {
+                            ui.close();
+                        }
+                    },
+                );
             });
 
             if modal.should_close() {
@@ -71,7 +77,7 @@ impl super::View for SpinWheel {
         let painter = ui.painter();
 
         // Tick the wheel
-        self.wheel.do_spin(ui.ctx(), &mut self.wheel_choices);
+        self.wheel.do_spin(ui.ctx(), &mut self.pd.wheel_choices);
 
         self.wheel.center = egui::pos2(
             available_rect.width() * 0.25 + constants::WHEEL_OFFSET,
@@ -81,10 +87,10 @@ impl super::View for SpinWheel {
         let available_width = available_rect.width() / 4.0;
         let available_height = available_rect.height() / 2.0;
         self.wheel.radius = f32::min(available_width, available_height);
-        self.wheel.draw(painter, &mut self.wheel_choices);
+        self.wheel.draw(painter, &mut self.pd.wheel_choices);
 
         // Triangle
-        if !self.wheel_choices.is_empty() {
+        if !self.pd.wheel_choices.is_empty() {
             let triangle_center = self.wheel.get_triangle_center();
             let triangle_points: Vec<Pos2> = vec![
                 egui::pos2(triangle_center.x - 15.0, triangle_center.y),
@@ -139,7 +145,7 @@ impl super::View for SpinWheel {
                             .clicked()
                             || text_box.pressed_enter(ui.ctx())
                         {
-                            self.add_entry();
+                            self.add_entry(None);
                             text_box.request_focus();
                         }
                     });
@@ -150,12 +156,34 @@ impl super::View for SpinWheel {
                         ui.vertical(|ui| {
                             ui.label("Choices:");
                             ui.add_space(constants::SPACER_AMOUNT / 2.0);
-                            let choices_to_display: Vec<Choice> = self.wheel_choices.clone();
+                            let choices_to_display: Vec<Choice> = self.pd.wheel_choices.clone();
                             for choice in choices_to_display {
                                 ui.horizontal(|ui| {
                                     if ui.button("❌").clicked() {
                                         self.remove_entry(choice.clone(), false);
                                     }
+
+                                    let real_choice = self
+                                        .pd
+                                        .wheel_choices
+                                        .iter_mut()
+                                        .find(|c| c.label == choice.label)
+                                        .unwrap();
+
+                                    let drag_value = ui.add(
+                                        egui::DragValue::new(&mut real_choice.weight)
+                                            .speed(0.05)
+                                            .range(1..=75),
+                                    );
+
+                                    if drag_value.changed() {
+                                        self.wheel.reset_rotation(&self.pd.wheel_choices);
+                                    }
+
+                                    if drag_value.lost_focus() {
+                                        self.pd.save_to_disk();
+                                    }
+                                    
                                     ui.label(&choice.label);
                                 });
                             }
@@ -164,7 +192,7 @@ impl super::View for SpinWheel {
                         ui.vertical(|ui| {
                             ui.label("Removed:");
                             ui.add_space(constants::SPACER_AMOUNT / 2.0);
-                            let removed_to_display: Vec<Choice> = self.removed_choices.clone();
+                            let removed_to_display: Vec<Choice> = self.pd.removed_choices.clone();
                             for choice in removed_to_display {
                                 ui.horizontal(|ui| {
                                     if ui.button("🔙 Add back").clicked() {
@@ -178,7 +206,7 @@ impl super::View for SpinWheel {
 
                     if ui
                         .add_enabled(
-                            !self.wheel.spinning && !self.wheel_choices.is_empty(),
+                            !self.wheel.spinning && !self.pd.wheel_choices.is_empty(),
                             egui::Button::new(
                                 egui::RichText::new("💫 Spin the wheel!")
                                     .font(FontId::proportional(constants::TITLE_SIZE)),
@@ -186,13 +214,15 @@ impl super::View for SpinWheel {
                         )
                         .clicked()
                     {
+                        self.pd.save_to_disk();
                         self.wheel.start_spin();
                     }
 
                     if ui.button("🗑 Clear").clicked() {
-                        self.wheel_choices = vec![];
-                        self.removed_choices = vec![];
+                        self.pd.wheel_choices = vec![];
+                        self.pd.removed_choices = vec![];
                         self.wheel.clear();
+                        self.pd.save_to_disk();
                     }
                 });
             });
@@ -201,11 +231,11 @@ impl super::View for SpinWheel {
 
 impl SpinWheel {
     /// Adds a new entry to the wheel choices
-    fn add_entry(&mut self) {
+    fn add_entry(&mut self, weight: Option<u32>) {
         if self.can_add_entry() {
-            let new_choice = Choice::new(self.input_text.trim().replace("\n", " "));
-            self.wheel_choices.push(new_choice);
-            self.wheel.reset_rotation(&self.wheel_choices);
+            let new_choice = Choice::new(self.input_text.trim().replace("\n", " "), weight);
+            self.pd.wheel_choices.push(new_choice);
+            self.wheel.reset_rotation(&self.pd.wheel_choices);
             self.input_text.clear();
         }
     }
@@ -213,33 +243,35 @@ impl SpinWheel {
     /// Removes an entry and adds it to the removed choices list
     fn remove_entry(&mut self, choice: Choice, soft: bool) {
         let entry_index = self
+            .pd
             .wheel_choices
             .iter()
             .position(|entry_found| entry_found.label == choice.label);
 
         if let Some(index) = entry_index {
-            self.wheel_choices.remove(index);
+            self.pd.wheel_choices.remove(index);
             if soft {
-                self.removed_choices.push(choice);
+                self.pd.removed_choices.push(choice);
             }
         }
 
-        self.wheel.reset_rotation(&self.wheel_choices);
+        self.wheel.reset_rotation(&self.pd.wheel_choices);
     }
 
     /// Adds an entry back from the removed choices list
     fn add_entry_back(&mut self, choice: Choice) {
         let entry_index = self
+            .pd
             .removed_choices
             .iter()
             .position(|entry_found| entry_found.label == choice.label);
 
         if let Some(index) = entry_index {
-            self.removed_choices.remove(index);
-            self.wheel_choices.push(choice);
+            self.pd.removed_choices.remove(index);
+            self.pd.wheel_choices.push(choice);
         }
 
-        self.wheel.reset_rotation(&self.wheel_choices);
+        self.wheel.reset_rotation(&self.pd.wheel_choices);
     }
 
     /// Checks if a new entry can be added
@@ -252,6 +284,6 @@ impl SpinWheel {
     }
     /// Checks if the wheel choices have reached the maximum limit
     fn choices_full(&self) -> bool {
-        self.wheel_choices.len() >= constants::MAX_CHOICES
+        self.pd.wheel_choices.len() >= constants::MAX_CHOICES
     }
 }

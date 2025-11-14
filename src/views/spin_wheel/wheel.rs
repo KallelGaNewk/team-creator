@@ -17,17 +17,17 @@ pub struct Wheel {
     pub selected_winner_once: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Choice {
     pub label: String,
     pub weight: u32,
 }
 
 impl Choice {
-    pub fn new(label: String) -> Self {
+    pub fn new(label: String, weight: Option<u32>) -> Self {
         Self {
             label: label.to_string(),
-            weight: 1,
+            weight: weight.unwrap_or(1),
         }
     }
 }
