@@ -33,17 +33,18 @@ impl super::View for Settings {
 
         ui.horizontal(|ui| {
             ui.label("Zoom:");
-            if !ui
-                .add(egui::Slider::new(&mut settings.zoom, 0.8..=3.0))
-                .dragged()
-            {
-                ui.ctx().set_pixels_per_point(settings.zoom);
+            let slider = ui.add(egui::Slider::new(&mut settings.zoom, 0.8..=5.0));
+
+            settings.is_updating_zoom = slider.dragged();
+            ui.label(slider.drag_stopped().to_string());
+            if slider.drag_stopped() {
+                settings.save_to_disk();
             }
         });
-        
+
         ui.horizontal(|ui| {
             ui.label("Theme:");
-            egui::widgets::global_theme_preference_buttons(ui);
+            self.theme_picker(ui, settings);
         });
     }
 }
@@ -55,9 +56,40 @@ impl Default for Settings {
 }
 
 impl Settings {
+    fn theme_picker(&mut self, ui: &mut egui::Ui, settings: &mut crate::app::SettingsData) {
+        if ui
+            .horizontal(|ui| {
+                ui.selectable_value(
+                    &mut settings.theme,
+                    crate::app::ThemePreference::System,
+                    "💻 System",
+                )
+                .clicked()
+                    || ui
+                        .selectable_value(
+                            &mut settings.theme,
+                            crate::app::ThemePreference::Dark,
+                            "🌙 Dark",
+                        )
+                        .clicked()
+                    || ui
+                        .selectable_value(
+                            &mut settings.theme,
+                            crate::app::ThemePreference::Light,
+                            "☀ Light",
+                        )
+                        .clicked()
+            })
+            .inner
+        {
+            settings.save_to_disk();
+        }
+    }
+
     fn reset_button(&mut self, ui: &mut egui::Ui, settings: &mut crate::app::SettingsData) {
         if ui.button("↻ Reset").clicked() {
             *settings = crate::app::SettingsData::default();
+            settings.save_to_disk();
         }
     }
 }
