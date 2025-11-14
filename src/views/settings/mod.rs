@@ -12,33 +12,52 @@ impl PersistentCache for PersistentData {
     }
 }
 
-pub struct Settings {
-    persistent_data: PersistentData,
-}
+pub struct Settings {}
 
 impl super::View for Settings {
     fn name(&self) -> &str {
         "⚙ Settings"
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Settings");
+    fn ui(&mut self, ui: &mut egui::Ui, settings: &mut crate::app::SettingsData) {
+        egui::Sides::new().show(
+            ui,
+            |ui| {
+                ui.heading("Settings");
+            },
+            |ui| {
+                self.reset_button(ui, settings);
+            },
+        );
         ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.label("Zoom:");
+            if !ui
+                .add(egui::Slider::new(&mut settings.zoom, 0.8..=3.0))
+                .dragged()
+            {
+                ui.ctx().set_pixels_per_point(settings.zoom);
+            }
+        });
+        
+        ui.horizontal(|ui| {
+            ui.label("Theme:");
+            egui::widgets::global_theme_preference_buttons(ui);
+        });
     }
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings {
-            persistent_data: PersistentData::read_or(PersistentData {}),
-        }
+        Settings {}
     }
 }
 
 impl Settings {
-    fn reset_button(&mut self, ui: &mut egui::Ui) {
+    fn reset_button(&mut self, ui: &mut egui::Ui, settings: &mut crate::app::SettingsData) {
         if ui.button("↻ Reset").clicked() {
-            self.persistent_data.save_to_disk();
+            *settings = crate::app::SettingsData::default();
         }
     }
 }

@@ -1,10 +1,12 @@
+use crate::app::SettingsData;
+
 mod settings;
 mod spin_wheel;
 mod team_creator;
 
 pub trait View {
     fn name(&self) -> &str;
-    fn ui(&mut self, ui: &mut eframe::egui::Ui);
+    fn ui(&mut self, ui: &mut eframe::egui::Ui, settings: &mut SettingsData);
 }
 
 pub struct Views {
@@ -31,8 +33,8 @@ impl Views {
         self.views[self.active_view].name()
     }
 
-    pub fn ui(&mut self, ui: &mut eframe::egui::Ui) {
-        self.views[self.active_view].ui(ui);
+    pub fn ui(&mut self, ui: &mut eframe::egui::Ui, settings: &mut SettingsData) {
+        self.views[self.active_view].ui(ui, settings);
     }
 
     pub fn set_active_view(&mut self, index: usize) {

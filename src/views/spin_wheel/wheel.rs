@@ -5,6 +5,7 @@ use eframe::{
 };
 use egui::{Align2, epaint::TextShape};
 use rand::Rng;
+use ulid::Ulid;
 use std::f32::consts::PI;
 
 pub struct Wheel {
@@ -19,6 +20,7 @@ pub struct Wheel {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Choice {
+    pub id: Ulid,
     pub label: String,
     pub weight: u32,
 }
@@ -28,6 +30,7 @@ impl Choice {
         Self {
             label: label.to_string(),
             weight: weight.unwrap_or(1),
+            id: Ulid::new(),
         }
     }
 }

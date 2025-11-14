@@ -44,7 +44,7 @@ impl super::View for SpinWheel {
         "🎲 Spin Wheel"
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, _settings: &mut crate::app::SettingsData) {
         if let Some(winner) = self.wheel.winner.clone() {
             let modal = Modal::new(Id::new("Result Modal")).show(ui.ctx(), |ui| {
                 ui.set_width(250.0);
@@ -152,57 +152,65 @@ impl super::View for SpinWheel {
 
                     ui.add_space(constants::SPACER_AMOUNT);
 
-                    ui.horizontal(|ui| {
-                        ui.vertical(|ui| {
-                            ui.label("Choices:");
-                            ui.add_space(constants::SPACER_AMOUNT / 2.0);
-                            let choices_to_display: Vec<Choice> = self.pd.wheel_choices.clone();
-                            for choice in choices_to_display {
-                                ui.horizontal(|ui| {
-                                    if ui.button("❌").clicked() {
-                                        self.remove_entry(choice.clone(), false);
+                    egui::ScrollArea::both()
+                        .auto_shrink([false, false]) // Fill both directions
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.label("Choices:");
+                                    ui.add_space(constants::SPACER_AMOUNT / 2.0);
+                                    let choices_to_display: Vec<Choice> =
+                                        self.pd.wheel_choices.clone();
+                                    for choice in choices_to_display {
+                                        ui.horizontal(|ui| {
+                                            if ui.button("❌").clicked() {
+                                                self.remove_entry(choice.clone(), false);
+                                            }
+
+                                            let real_choice = self
+                                                .pd
+                                                .wheel_choices
+                                                .iter_mut()
+                                                .find(|c| c.id == choice.id);
+
+                                            if let Some(real_choice) = real_choice {
+                                                let drag_value = ui.add(
+                                                    egui::DragValue::new(&mut real_choice.weight)
+                                                        .speed(0.05)
+                                                        .range(1..=75),
+                                                );
+
+                                                if drag_value.changed() {
+                                                    self.wheel
+                                                        .reset_rotation(&self.pd.wheel_choices);
+                                                }
+
+                                                if drag_value.lost_focus() {
+                                                    self.pd.save_to_disk();
+                                                }
+                                            }
+
+                                            ui.label(&choice.label);
+                                        });
                                     }
-
-                                    let real_choice = self
-                                        .pd
-                                        .wheel_choices
-                                        .iter_mut()
-                                        .find(|c| c.label == choice.label)
-                                        .unwrap();
-
-                                    let drag_value = ui.add(
-                                        egui::DragValue::new(&mut real_choice.weight)
-                                            .speed(0.05)
-                                            .range(1..=75),
-                                    );
-
-                                    if drag_value.changed() {
-                                        self.wheel.reset_rotation(&self.pd.wheel_choices);
-                                    }
-
-                                    if drag_value.lost_focus() {
-                                        self.pd.save_to_disk();
-                                    }
-                                    
-                                    ui.label(&choice.label);
                                 });
-                            }
-                        });
-                        ui.separator();
-                        ui.vertical(|ui| {
-                            ui.label("Removed:");
-                            ui.add_space(constants::SPACER_AMOUNT / 2.0);
-                            let removed_to_display: Vec<Choice> = self.pd.removed_choices.clone();
-                            for choice in removed_to_display {
-                                ui.horizontal(|ui| {
-                                    if ui.button("🔙 Add back").clicked() {
-                                        self.add_entry_back(choice.clone());
+                                ui.separator();
+                                ui.vertical(|ui| {
+                                    ui.label("Removed:");
+                                    ui.add_space(constants::SPACER_AMOUNT / 2.0);
+                                    let removed_to_display: Vec<Choice> =
+                                        self.pd.removed_choices.clone();
+                                    for choice in removed_to_display {
+                                        ui.horizontal(|ui| {
+                                            if ui.button("🔙 Add back").clicked() {
+                                                self.add_entry_back(choice.clone());
+                                            }
+                                            ui.label(&choice.label);
+                                        });
                                     }
-                                    ui.label(&choice.label);
                                 });
-                            }
+                            });
                         });
-                    });
 
                     if ui
                         .add_enabled(
@@ -246,7 +254,7 @@ impl SpinWheel {
             .pd
             .wheel_choices
             .iter()
-            .position(|entry_found| entry_found.label == choice.label);
+            .position(|entry_found| entry_found.id == choice.id);
 
         if let Some(index) = entry_index {
             self.pd.wheel_choices.remove(index);
@@ -264,7 +272,7 @@ impl SpinWheel {
             .pd
             .removed_choices
             .iter()
-            .position(|entry_found| entry_found.label == choice.label);
+            .position(|entry_found| entry_found.id == choice.id);
 
         if let Some(index) = entry_index {
             self.pd.removed_choices.remove(index);

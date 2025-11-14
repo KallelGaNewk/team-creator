@@ -24,8 +24,6 @@ pub struct TeamCreator {
     persistent_data: PersistentData,
     player_being_edited: Option<usize>,
     new_player: Player,
-    #[cfg(target_arch = "wasm32")]
-    window: web_sys::Window,
 }
 
 impl PersistentCache for PersistentData {
@@ -39,7 +37,7 @@ impl super::View for TeamCreator {
         "👥 Team Creator"
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, _settings: &mut crate::app::SettingsData) {
         match self.tab {
             Tab::TeamCreator => {
                 self.show_team_creator(ui);
@@ -62,8 +60,6 @@ impl Default for TeamCreator {
             }),
             player_being_edited: None,
             new_player: Player::default(),
-            #[cfg(target_arch = "wasm32")]
-            window: web_sys::window().expect("no global `window` exists"),
         }
     }
 }
