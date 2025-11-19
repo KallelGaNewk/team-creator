@@ -5,8 +5,8 @@ use eframe::{
 };
 use egui::{Align2, epaint::TextShape};
 use rand::Rng;
-use ulid::Ulid;
 use std::f32::consts::PI;
+use ulid::Ulid;
 
 pub struct Wheel {
     pub radius: f32,

@@ -27,7 +27,7 @@ impl super::View for Settings {
         "📄 Template"
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, _settings: &mut crate::app::SettingsData) {
         ui.heading("Template View");
     }
 }

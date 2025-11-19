@@ -1,5 +1,6 @@
 use crate::app::SettingsData;
 
+mod lambidinha;
 mod settings;
 mod spin_wheel;
 mod team_creator;
@@ -22,6 +23,7 @@ impl Default for Views {
                 Box::<team_creator::TeamCreator>::default(),
                 Box::<spin_wheel::SpinWheel>::default(),
                 Box::<settings::Settings>::default(),
+                Box::<lambidinha::Lambidinha>::default(),
             ],
         }
     }
